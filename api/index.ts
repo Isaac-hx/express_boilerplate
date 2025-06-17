@@ -1,112 +1,39 @@
-require('dotenv').config();
+import express from "express"
+import router from "../src/routes/karyawan.js"
+import userRoutes from "../src/routes/user.js"
+import cookieParser from 'cookie-parser';
+import absensiRoutes from "../src/routes/absensi.js";
+import morgan from "morgan";
+import cors from 'cors'
+import dotenv from "dotenv"
+dotenv.config()
 
-const express = require('express');
-const app = express();
-const { sql } = require('@vercel/postgres');
+const PORT =  process.env.APP_PORT || 3000;
+const app = express()
 
-const bodyParser = require('body-parser');
-const path = require('path');
+// Cors header
+const corsOptions = {
+  origin: "*", // Allowed origins
+  methods: ['GET', 'POST', 'PUT', 'DELETE'], // Allowed methods
+  allowedHeaders: ['Content-Type', 'Authorization'], // Allowed headers
+  credentials: true, // Enable cookies or other credentials
+};
 
-// Create application/x-www-form-urlencoded parsers
-const urlencodedParser = bodyParser.urlencoded({ extended: false });
 
-app.use(express.static('public'));
+//Middleware wesbervices
+app.use(cors(corsOptions));
+app.use(cookieParser())
+app.use(express.json())
+app.use(morgan('combined'))
+// Route webservices
+app.use("/api/karyawan",router)
+app.use("/api/users",userRoutes)
+app.use("/api/absensi",absensiRoutes)
+ 
 
-app.get('/', function (req, res) {
-	res.sendFile(path.join(__dirname, '..', 'components', 'home.htm'));
+
+app.listen(PORT, () => {
+  console.log(`🚀 Server is running on http://localhost:${PORT}`);
 });
 
-app.get('/about', function (req, res) {
-	res.sendFile(path.join(__dirname, '..', 'components', 'about.htm'));
-});
-
-app.get('/uploadUser', function (req, res) {
-	res.sendFile(path.join(__dirname, '..', 'components', 'user_upload_form.htm'));
-});
-
-app.post('/uploadSuccessful', urlencodedParser, async (req, res) => {
-	try {
-		await sql`INSERT INTO Users (Id, Name, Email) VALUES (${req.body.user_id}, ${req.body.name}, ${req.body.email});`;
-		res.status(200).send('<h1>User added successfully</h1>');
-	} catch (error) {
-		console.error(error);
-		res.status(500).send('Error adding user');
-	}
-});
-
-app.get('/allUsers', async (req, res) => {
-	try {
-		const users = await sql`SELECT * FROM Users;`;
-		if (users && users.rows.length > 0) {
-			let tableContent = users.rows
-				.map(
-					(user) =>
-						`<tr>
-                        <td>${user.id}</td>
-                        <td>${user.name}</td>
-                        <td>${user.email}</td>
-                    </tr>`
-				)
-				.join('');
-
-			res.status(200).send(`
-                <html>
-                    <head>
-                        <title>Users</title>
-                        <style>
-                            body {
-                                font-family: Arial, sans-serif;
-                            }
-                            table {
-                                width: 100%;
-                                border-collapse: collapse;
-                                margin-bottom: 15px;
-                            }
-                            th, td {
-                                border: 1px solid #ddd;
-                                padding: 8px;
-                                text-align: left;
-                            }
-                            th {
-                                background-color: #f2f2f2;
-                            }
-                            a {
-                                text-decoration: none;
-                                color: #0a16f7;
-                                margin: 15px;
-                            }
-                        </style>
-                    </head>
-                    <body>
-                        <h1>Users</h1>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>User ID</th>
-                                    <th>Name</th>
-                                    <th>Email</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${tableContent}
-                            </tbody>
-                        </table>
-                        <div>
-                            <a href="/">Home</a>
-                            <a href="/uploadUser">Add User</a>
-                        </div>
-                    </body>
-                </html>
-            `);
-		} else {
-			res.status(404).send('Users not found');
-		}
-	} catch (error) {
-		console.error(error);
-		res.status(500).send('Error retrieving users');
-	}
-});
-
-app.listen(3000, () => console.log('Server ready on port 3000.'));
-
-module.exports = app;
+export default app
